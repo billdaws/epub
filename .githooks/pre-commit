@@ -1,0 +1,7 @@
+#!/bin/sh
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+
+if [ -n "$staged" ]; then
+    gofmt -w $staged
+    git add $staged
+fi
