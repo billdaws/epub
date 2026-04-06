@@ -145,3 +145,7 @@ See [LICENSE](LICENSE).
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING).
+
+## Feedback and suggestions
+
+If you have a bug report or feature request, please [open a GitHub issue](https://github.com/billdaws/epub/issues/new/choose).
