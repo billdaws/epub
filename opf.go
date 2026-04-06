@@ -11,6 +11,7 @@ import (
 
 // Package is the parsed contents of an OPF package document.
 type Package struct {
+	Version  string // e.g. "2.0" or "3.0", as written in the OPF
 	Metadata Metadata
 	Manifest []Item
 	Spine    []SpineItem
@@ -76,6 +77,7 @@ func parsePackage(zr *zip.Reader, opfPath string) (*Package, error) {
 // xmlPackage mirrors the OPF XML structure for decoding.
 type xmlPackage struct {
 	XMLName          xml.Name `xml:"http://www.idpf.org/2007/opf package"`
+	Version          string   `xml:"version,attr"`
 	UniqueIdentifier string   `xml:"unique-identifier,attr"`
 	Metadata         struct {
 		Titles   []string `xml:"http://purl.org/dc/elements/1.1/ title"`
@@ -87,8 +89,6 @@ type xmlPackage struct {
 			Value string `xml:",chardata"`
 			ID    string `xml:"id,attr"`
 		} `xml:"http://purl.org/dc/elements/1.1/ identifier"`
-		// EPUB 2 uses multiple dc:date elements with opf:event attributes;
-		// EPUB 3 uses a single dc:date with no event.
 		Dates []struct {
 			Value string `xml:",chardata"`
 			Event string `xml:"http://www.idpf.org/2007/opf event,attr"`
@@ -110,14 +110,60 @@ type xmlPackage struct {
 	} `xml:"http://www.idpf.org/2007/opf spine"`
 }
 
-func decodePackage(r io.Reader, opfPath string) (*Package, error) {
+func parseXMLPackage(r io.Reader, opfPath string) (xmlPackage, error) {
 	var x xmlPackage
 	if err := xml.NewDecoder(r).Decode(&x); err != nil {
-		return nil, fmt.Errorf("epub: decode OPF %q: %w", opfPath, err)
+		return xmlPackage{}, fmt.Errorf("epub: decode OPF %q: %w", opfPath, err)
+	}
+	return x, nil
+}
+
+// DecodePackageV2 parses r as an EPUB 2 OPF document. It ignores the version
+// attribute; use this when you already know the content is EPUB 2.
+func DecodePackageV2(r io.Reader, opfPath string) (*Package, error) {
+	x, err := parseXMLPackage(r, opfPath)
+	if err != nil {
+		return nil, err
+	}
+	return buildPackage(x, extractMetadataV2(x), opfPath), nil
+}
+
+// DecodePackageV3 parses r as an EPUB 3 OPF document. It ignores the version
+// attribute; use this when you already know the content is EPUB 3.
+func DecodePackageV3(r io.Reader, opfPath string) (*Package, error) {
+	x, err := parseXMLPackage(r, opfPath)
+	if err != nil {
+		return nil, err
+	}
+	return buildPackage(x, extractMetadataV3(x), opfPath), nil
+}
+
+// decodePackage reads the version attribute and dispatches to the appropriate
+// version-specific decoder. It returns an error for unrecognised versions.
+func decodePackage(r io.Reader, opfPath string) (*Package, error) {
+	x, err := parseXMLPackage(r, opfPath)
+	if err != nil {
+		return nil, err
 	}
 
-	pkg := &Package{}
-	pkg.Metadata = extractMetadata(x)
+	majorVersion, _, _ := strings.Cut(x.Version, ".")
+	switch majorVersion {
+	case "2":
+		return buildPackage(x, extractMetadataV2(x), opfPath), nil
+	case "3":
+		return buildPackage(x, extractMetadataV3(x), opfPath), nil
+	default:
+		return nil, fmt.Errorf("epub: unsupported OPF version %q in %q", x.Version, opfPath)
+	}
+}
+
+// buildPackage assembles a Package from a decoded xmlPackage and pre-extracted
+// metadata. Manifest and spine parsing is identical across EPUB versions.
+func buildPackage(x xmlPackage, meta Metadata, opfPath string) *Package {
+	pkg := &Package{
+		Version:  x.Version,
+		Metadata: meta,
+	}
 
 	opfDir := path.Dir(opfPath)
 	pkg.Manifest = make([]Item, 0, len(x.Manifest.Items))
@@ -142,10 +188,45 @@ func decodePackage(r io.Reader, opfPath string) (*Package, error) {
 		})
 	}
 
-	return pkg, nil
+	return pkg
 }
 
-func extractMetadata(x xmlPackage) Metadata {
+// extractMetadataV2 extracts metadata from an EPUB 2 OPF. It prefers the
+// dc:date element with opf:event="publication" for the publication date.
+func extractMetadataV2(x xmlPackage) Metadata {
+	m := extractCommonMetadata(x)
+
+	for _, d := range x.Metadata.Dates {
+		if d.Event == "publication" {
+			m.PublicationDate = strings.TrimSpace(d.Value)
+			break
+		}
+	}
+	if m.PublicationDate == "" && len(x.Metadata.Dates) > 0 {
+		m.PublicationDate = strings.TrimSpace(x.Metadata.Dates[0].Value)
+	}
+
+	return m
+}
+
+// extractMetadataV3 extracts metadata from an EPUB 3 OPF. It uses the first
+// dc:date element with no opf:event attribute for the publication date.
+func extractMetadataV3(x xmlPackage) Metadata {
+	m := extractCommonMetadata(x)
+
+	for _, d := range x.Metadata.Dates {
+		if d.Event == "" {
+			m.PublicationDate = strings.TrimSpace(d.Value)
+			break
+		}
+	}
+
+	return m
+}
+
+// extractCommonMetadata handles the metadata fields that are identical across
+// all EPUB versions: title, authors, language, and identifier.
+func extractCommonMetadata(x xmlPackage) Metadata {
 	m := Metadata{}
 
 	if len(x.Metadata.Titles) > 0 {
@@ -171,17 +252,6 @@ func extractMetadata(x xmlPackage) Metadata {
 	}
 	if m.Identifier == "" && len(x.Metadata.Identifiers) > 0 {
 		m.Identifier = strings.TrimSpace(x.Metadata.Identifiers[0].Value)
-	}
-
-	// Prefer the date with event="publication" (EPUB 2); fall back to first date.
-	for _, d := range x.Metadata.Dates {
-		if d.Event == "publication" {
-			m.PublicationDate = strings.TrimSpace(d.Value)
-			break
-		}
-	}
-	if m.PublicationDate == "" && len(x.Metadata.Dates) > 0 {
-		m.PublicationDate = strings.TrimSpace(x.Metadata.Dates[0].Value)
 	}
 
 	return m

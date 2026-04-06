@@ -9,6 +9,7 @@ func TestDecodePackage(t *testing.T) {
 	tests := []struct {
 		name         string
 		xml          string
+		wantVersion  string
 		wantTitle    string
 		wantAuthors  []string
 		wantLang     string
@@ -39,6 +40,7 @@ func TestDecodePackage(t *testing.T) {
     <itemref idref="ch1" linear="yes"/>
   </spine>
 </package>`,
+			wantVersion: "2.0",
 			wantTitle:   "My Book",
 			wantAuthors: []string{"Jane Doe"},
 			wantLang:    "en",
@@ -74,6 +76,7 @@ func TestDecodePackage(t *testing.T) {
     <itemref idref="nav" linear="no"/>
   </spine>
 </package>`,
+			wantVersion: "3.0",
 			wantTitle:   "Another Book",
 			wantAuthors: []string{"Alice Smith", "Bob Jones"},
 			wantLang:    "fr",
@@ -93,6 +96,16 @@ func TestDecodePackage(t *testing.T) {
 			xml:     `not xml`,
 			wantErr: true,
 		},
+		{
+			name: "unknown version",
+			xml: `<?xml version='1.0' encoding='UTF-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
+         version="4.0" unique-identifier="id">
+  <metadata><dc:identifier id="id">x</dc:identifier><dc:title>T</dc:title><dc:language>en</dc:language></metadata>
+  <manifest/><spine/>
+</package>`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -105,6 +118,9 @@ func TestDecodePackage(t *testing.T) {
 				return
 			}
 
+			if pkg.Version != tt.wantVersion {
+				t.Errorf("Version = %q, want %q", pkg.Version, tt.wantVersion)
+			}
 			if pkg.Metadata.Title != tt.wantTitle {
 				t.Errorf("Title = %q, want %q", pkg.Metadata.Title, tt.wantTitle)
 			}
@@ -127,6 +143,33 @@ func TestDecodePackage(t *testing.T) {
 				t.Errorf("Spine = %+v, want %+v", pkg.Spine, tt.wantSpine)
 			}
 		})
+	}
+}
+
+func TestDecodePackageV2_SkipsVersionCheck(t *testing.T) {
+	// DecodePackageV2 should succeed even when version attribute is missing or unknown,
+	// because the caller has asserted the version externally.
+	xml := `<?xml version='1.0' encoding='UTF-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
+         version="4.0" unique-identifier="id">
+  <metadata>
+    <dc:identifier id="id">x</dc:identifier>
+    <dc:title>Force EPUB 2</dc:title>
+    <dc:language>en</dc:language>
+    <dc:date opf:event="publication" xmlns:opf="http://www.idpf.org/2007/opf">2000-01-01</dc:date>
+  </metadata>
+  <manifest/><spine/>
+</package>`
+
+	pkg, err := DecodePackageV2(strings.NewReader(xml), "content.opf")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pkg.Metadata.Title != "Force EPUB 2" {
+		t.Errorf("Title = %q, want %q", pkg.Metadata.Title, "Force EPUB 2")
+	}
+	if pkg.Metadata.PublicationDate != "2000-01-01" {
+		t.Errorf("PublicationDate = %q, want %q", pkg.Metadata.PublicationDate, "2000-01-01")
 	}
 }
 
