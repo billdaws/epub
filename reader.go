@@ -4,14 +4,16 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"sync"
 )
 
 // Reader holds an open EPUB file and its parsed Package, allowing content
 // items to be read without reopening the archive on each call. The caller
-// must call Close when done.
+// must call Close when done. Reader is safe for concurrent use.
 type Reader struct {
 	// Package is the parsed OPF document for the open EPUB.
 	Package *Package
+	mu      sync.RWMutex
 	zr      *zip.ReadCloser
 }
 
@@ -38,14 +40,21 @@ func Open(path string) (*Reader, error) {
 	return &Reader{Package: pkg, zr: zr}, nil
 }
 
-// Close closes the underlying EPUB file.
+// Close closes the underlying EPUB file. It waits for any in-progress
+// ReadItem calls to complete before closing.
 func (r *Reader) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return r.zr.Close()
 }
 
 // ReadItem returns the raw bytes of item's content file within the EPUB.
-// item must come from r.Package.Manifest.
+// item must come from r.Package.Manifest. Multiple goroutines may call
+// ReadItem concurrently.
 func (r *Reader) ReadItem(item Item) ([]byte, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	f := findFile(&r.zr.Reader, item.Href)
 	if f == nil {
 		return nil, fmt.Errorf("epub: item %q not found at %q", item.ID, item.Href)

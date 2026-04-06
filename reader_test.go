@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -195,6 +196,57 @@ func firstParagraph(data []byte) string {
 		}
 	}
 	return ""
+}
+
+// TestReadItem_ConcurrentReads verifies that multiple goroutines can call
+// ReadItem simultaneously without data races. Run with -race.
+func TestReadItem_ConcurrentReads(t *testing.T) {
+	r, err := Open("testdata/wuthering-heights.epub")
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer r.Close()
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for _, item := range r.Package.Manifest {
+				if _, err := r.ReadItem(item); err != nil {
+					t.Errorf("ReadItem(%q): %v", item.ID, err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// TestReadItem_ConcurrentCloseAndRead verifies that calling Close while
+// ReadItem calls are in flight does not cause a data race. Run with -race.
+func TestReadItem_ConcurrentCloseAndRead(t *testing.T) {
+	r, err := Open("testdata/wuthering-heights.epub")
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for _, item := range r.Package.Manifest {
+				// Errors are expected once Close is called; ignore them.
+				r.ReadItem(item) //nolint:errcheck
+			}
+		}()
+	}
+
+	// Close races with the reads above. The RWMutex ensures no data race.
+	r.Close()
+	wg.Wait()
 }
 
 func TestReadItem_MissingHref(t *testing.T) {
