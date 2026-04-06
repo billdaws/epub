@@ -5,6 +5,7 @@
 1. **High test coverage.** Unit tests for all public APIs and integration tests using real public-domain books (e.g. from Project Gutenberg).
 2. **Go idioms.** Unsurprising, conventional Go: clear error handling, no global state, errors as values, zero use of `panic` in library code.
 3. **Zero dependencies.** Only the Go standard library. No third-party modules.
+4. **Struct tags.** All externally-facing structs (those that appear in public API signatures) must carry `json:"..."` tags with `snake_case` keys. Use `omitempty` where a field is intentionally optional. Internal-only structs (XML helpers, unexported types) do not need JSON tags.
 
 ## Version-Dependent Logic
 

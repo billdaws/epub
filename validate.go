@@ -33,8 +33,8 @@ const (
 
 // Violation describes a single structural rule violation in a Package.
 type Violation struct {
-	Code    ViolationCode // machine-readable rule identifier
-	Message string        // human-readable description of the violation
+	Code    ViolationCode `json:"code"`    // machine-readable rule identifier
+	Message string        `json:"message"` // human-readable description of the violation
 }
 
 // violations accumulates Violation values.

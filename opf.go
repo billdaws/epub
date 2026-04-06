@@ -11,35 +11,35 @@ import (
 
 // Package is the parsed contents of an OPF package document.
 type Package struct {
-	Version  string      // e.g. "2.0" or "3.0", as written in the OPF
-	Metadata Metadata    // bibliographic metadata from the OPF <metadata> element
-	Manifest []Item      // all items declared in the OPF <manifest>
-	Spine    []SpineItem // reading order declared in the OPF <spine>
+	Version  string      `json:"version"`  // e.g. "2.0" or "3.0", as written in the OPF
+	Metadata Metadata    `json:"metadata"` // bibliographic metadata from the OPF <metadata> element
+	Manifest []Item      `json:"manifest"` // all items declared in the OPF <manifest>
+	Spine    []SpineItem `json:"spine"`    // reading order declared in the OPF <spine>
 }
 
 // Metadata holds Dublin Core bibliographic information from the OPF.
 type Metadata struct {
-	Title           string   // dc:title
-	Authors         []string // dc:creator values, in document order
-	Language        string   // dc:language (BCP 47 tag, e.g. "en")
-	Identifier      string   // dc:identifier matching unique-identifier, or first dc:identifier
-	PublicationDate string   // "YYYY-MM-DD" or "YYYY" as written in the file; empty if absent
+	Title           string   `json:"title"`                      // dc:title
+	Authors         []string `json:"authors,omitempty"`          // dc:creator values, in document order
+	Language        string   `json:"language"`                   // dc:language (BCP 47 tag, e.g. "en")
+	Identifier      string   `json:"identifier"`                 // dc:identifier matching unique-identifier, or first dc:identifier
+	PublicationDate string   `json:"publication_date,omitempty"` // "YYYY-MM-DD" or "YYYY" as written in the file; empty if absent
 }
 
 // Item is an entry in the OPF manifest.
 type Item struct {
-	ID        string // manifest item id attribute
-	Href      string // relative to the OPF document's directory
-	MediaType string // e.g. "application/xhtml+xml", "image/jpeg"
+	ID        string `json:"id"`         // manifest item id attribute
+	Href      string `json:"href"`       // relative to the OPF document's directory
+	MediaType string `json:"media_type"` // e.g. "application/xhtml+xml", "image/jpeg"
 	// Properties contains space-separated property values (EPUB 3 only, e.g. "nav", "cover-image").
 	// Empty for EPUB 2 items.
-	Properties string
+	Properties string `json:"properties,omitempty"`
 }
 
 // SpineItem is one entry in the OPF spine, identifying a manifest item by ID.
 type SpineItem struct {
-	IDRef  string // references a manifest item by its ID
-	Linear bool   // false only when the OPF explicitly sets linear="no"
+	IDRef  string `json:"id_ref"` // references a manifest item by its ID
+	Linear bool   `json:"linear"` // false only when the OPF explicitly sets linear="no"
 }
 
 // UnsupportedVersionError is returned when an OPF document declares a version

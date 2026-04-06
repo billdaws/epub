@@ -6,6 +6,8 @@
 
 **Go idioms.** Aim for conventional, unsurprising Go. No panics. No global state. Error handling should be explicit and local. If something feels like it needs a clever abstraction, it probably just needs a clearer function name.
 
+**Struct tags.** All externally-facing structs (those that appear in public API signatures) must have `json:"..."` tags using `snake_case` keys. Add `omitempty` where a field is intentionally optional (e.g. absent in some EPUB versions). Internal-only structs (XML helpers, unexported types) do not need JSON tags.
+
 **Zero dependencies.** Only the Go standard library. Do not add third-party modules.
 
 ## Adding EPUB version-specific logic

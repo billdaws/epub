@@ -12,9 +12,9 @@ import (
 // NavPoint is one entry in the table of contents. Children represent
 // nested sections.
 type NavPoint struct {
-	Title    string     // display text for the TOC entry
-	Src      string     // ZIP-relative path, may include a fragment (e.g. "OEBPS/ch1.xhtml#sec1")
-	Children []NavPoint // nested entries, nil if there are none
+	Title    string     `json:"title"`              // display text for the TOC entry
+	Src      string     `json:"src"`                // ZIP-relative path, may include a fragment (e.g. "OEBPS/ch1.xhtml#sec1")
+	Children []NavPoint `json:"children,omitempty"` // nested entries, nil if there are none
 }
 
 // OpenTOC opens the .epub file at epubPath and returns the table of contents.

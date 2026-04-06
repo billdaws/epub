@@ -28,7 +28,7 @@ import (
 type Container struct {
 	// RootfilePath is the path within the ZIP to the root OPF document,
 	// e.g. "OEBPS/content.opf".
-	RootfilePath string
+	RootfilePath string `json:"rootfile_path"`
 }
 
 // OpenContainer opens the .epub file at path and parses its container,

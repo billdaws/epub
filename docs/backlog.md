@@ -8,3 +8,4 @@
 - [x] **Validate structure** — check that a parsed EPUB conforms to required EPUB 3 (and EPUB 2 compat) structural rules and report violations as typed errors.
 - [x] **Documentation** - add example snippets, guides, clarifications, etc.
 - [x] **Domain errors** - expose custom types for common errors
+- [ ] **JSON tags** - for ser/de
