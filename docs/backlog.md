@@ -6,4 +6,5 @@
 - [x] **Read content items** — given a manifest item, return the raw bytes for its content so callers can decode HTML, images, CSS, etc.
 - [x] **Write / create EPUB** — build a valid EPUB 3 file from scratch: add metadata, add content items to the manifest, define spine order, and write to a file.
 - [x] **Validate structure** — check that a parsed EPUB conforms to required EPUB 3 (and EPUB 2 compat) structural rules and report violations as typed errors.
-- [ ] **Documentation** - add example snippets, guides, clarifications, etc.
+- [x] **Documentation** - add example snippets, guides, clarifications, etc.
+- [x] **Domain errors** - expose custom types for common errors

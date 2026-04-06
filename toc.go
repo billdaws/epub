@@ -54,12 +54,12 @@ func OpenTOC(epubPath string) ([]NavPoint, error) {
 		tocItem = ncxItem
 	}
 	if tocItem == nil {
-		return nil, fmt.Errorf("epub: no table of contents found in manifest")
+		return nil, &MissingTOCError{}
 	}
 
 	f := findFile(&zr.Reader, tocItem.Href)
 	if f == nil {
-		return nil, fmt.Errorf("epub: TOC file not found at %q", tocItem.Href)
+		return nil, &FileNotFoundError{Path: tocItem.Href}
 	}
 	rc, err := f.Open()
 	if err != nil {
@@ -151,7 +151,7 @@ func decodeNav(r io.Reader, dir string) ([]NavPoint, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("epub: no toc nav element found in navigation document")
+	return nil, &MissingNavElementError{}
 }
 
 // parseNavOl advances past tokens until it hits an <ol>, then delegates.

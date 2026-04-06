@@ -63,11 +63,11 @@ func Write(dst io.Writer, book Book) error {
 func checkBookMetadata(m Metadata) error {
 	switch {
 	case m.Title == "":
-		return fmt.Errorf("epub: write: title is required")
+		return &MissingMetadataError{Field: "title"}
 	case m.Language == "":
-		return fmt.Errorf("epub: write: language is required")
+		return &MissingMetadataError{Field: "language"}
 	case m.Identifier == "":
-		return fmt.Errorf("epub: write: identifier is required")
+		return &MissingMetadataError{Field: "identifier"}
 	default:
 		return nil
 	}

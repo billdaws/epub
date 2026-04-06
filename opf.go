@@ -42,6 +42,17 @@ type SpineItem struct {
 	Linear bool   // false only when the OPF explicitly sets linear="no"
 }
 
+// UnsupportedVersionError is returned when an OPF document declares a version
+// that this package does not recognise.
+type UnsupportedVersionError struct {
+	Version string // the version string from the OPF version attribute
+	Path    string // path to the OPF document within the EPUB archive
+}
+
+func (e *UnsupportedVersionError) Error() string {
+	return fmt.Sprintf("epub: unsupported OPF version %q in %q", e.Version, e.Path)
+}
+
 // OpenPackage opens the .epub file at path, locates the OPF document via the
 // container, and returns the parsed Package.
 func OpenPackage(path string) (*Package, error) {
@@ -62,7 +73,7 @@ func OpenPackage(path string) (*Package, error) {
 func parsePackage(zr *zip.Reader, opfPath string) (*Package, error) {
 	f := findFile(zr, opfPath)
 	if f == nil {
-		return nil, fmt.Errorf("epub: OPF not found at %q", opfPath)
+		return nil, &FileNotFoundError{Path: opfPath}
 	}
 
 	rc, err := f.Open()
@@ -153,7 +164,7 @@ func decodePackage(r io.Reader, opfPath string) (*Package, error) {
 	case "3":
 		return buildPackage(x, extractMetadataV3(x), opfPath), nil
 	default:
-		return nil, fmt.Errorf("epub: unsupported OPF version %q in %q", x.Version, opfPath)
+		return nil, &UnsupportedVersionError{Version: x.Version, Path: opfPath}
 	}
 }
 

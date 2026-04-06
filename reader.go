@@ -57,7 +57,7 @@ func (r *Reader) ReadItem(item Item) ([]byte, error) {
 
 	f := findFile(&r.zr.Reader, item.Href)
 	if f == nil {
-		return nil, fmt.Errorf("epub: item %q not found at %q", item.ID, item.Href)
+		return nil, &ItemNotFoundError{ID: item.ID, Href: item.Href}
 	}
 
 	rc, err := f.Open()

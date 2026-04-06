@@ -45,7 +45,7 @@ func OpenContainer(path string) (*Container, error) {
 func parseContainer(zr *zip.Reader) (*Container, error) {
 	f := findFile(zr, "META-INF/container.xml")
 	if f == nil {
-		return nil, fmt.Errorf("epub: META-INF/container.xml not found")
+		return nil, &FileNotFoundError{Path: "META-INF/container.xml"}
 	}
 
 	rc, err := f.Open()
@@ -81,7 +81,7 @@ func decodeContainer(r io.Reader) (*Container, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("epub: no rootfile found in container.xml")
+	return nil, &MalformedContainerError{}
 }
 
 // findFile returns the named file from the ZIP, or nil if absent.
