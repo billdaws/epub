@@ -11,26 +11,26 @@ import (
 
 // Package is the parsed contents of an OPF package document.
 type Package struct {
-	Version  string // e.g. "2.0" or "3.0", as written in the OPF
-	Metadata Metadata
-	Manifest []Item
-	Spine    []SpineItem
+	Version  string      // e.g. "2.0" or "3.0", as written in the OPF
+	Metadata Metadata    // bibliographic metadata from the OPF <metadata> element
+	Manifest []Item      // all items declared in the OPF <manifest>
+	Spine    []SpineItem // reading order declared in the OPF <spine>
 }
 
 // Metadata holds Dublin Core bibliographic information from the OPF.
 type Metadata struct {
-	Title           string
-	Authors         []string
-	Language        string
-	Identifier      string
-	PublicationDate string // "YYYY-MM-DD" or "YYYY" as written in the file; empty if absent
+	Title           string   // dc:title
+	Authors         []string // dc:creator values, in document order
+	Language        string   // dc:language (BCP 47 tag, e.g. "en")
+	Identifier      string   // dc:identifier matching unique-identifier, or first dc:identifier
+	PublicationDate string   // "YYYY-MM-DD" or "YYYY" as written in the file; empty if absent
 }
 
 // Item is an entry in the OPF manifest.
 type Item struct {
-	ID        string
+	ID        string // manifest item id attribute
 	Href      string // relative to the OPF document's directory
-	MediaType string
+	MediaType string // e.g. "application/xhtml+xml", "image/jpeg"
 	// Properties contains space-separated property values (EPUB 3 only, e.g. "nav", "cover-image").
 	// Empty for EPUB 2 items.
 	Properties string
@@ -38,8 +38,8 @@ type Item struct {
 
 // SpineItem is one entry in the OPF spine, identifying a manifest item by ID.
 type SpineItem struct {
-	IDRef  string
-	Linear bool // false only when the OPF explicitly sets linear="no"
+	IDRef  string // references a manifest item by its ID
+	Linear bool   // false only when the OPF explicitly sets linear="no"
 }
 
 // OpenPackage opens the .epub file at path, locates the OPF document via the

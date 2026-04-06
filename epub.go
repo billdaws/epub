@@ -1,4 +1,20 @@
-// Package epub provides support for reading EPUB files.
+// Package epub provides support for reading, writing, and validating EPUB files.
+//
+// # Reading
+//
+// Use [Open] for repeated access to content items within a single archive; the
+// file is kept open between calls. Use [OpenPackage] for one-shot access to
+// the OPF metadata, [OpenTOC] for the table of contents, or [OpenContainer]
+// when you only need the rootfile path.
+//
+// # Writing
+//
+// Use [Write] to encode a [Book] value as a valid EPUB 3 archive.
+//
+// # Validation
+//
+// Use [Validate] to check a parsed [Package] against the structural rules for
+// its EPUB version.
 package epub
 
 import (

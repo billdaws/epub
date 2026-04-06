@@ -17,20 +17,20 @@ const (
 // Book is the input to Write: bibliographic metadata, content items, and the
 // spine reading order.
 type Book struct {
-	Metadata Metadata
-	Items    []ContentItem
-	Spine    []string // IDs of Items in reading order
+	Metadata Metadata      // bibliographic metadata written to the OPF <metadata> element
+	Items    []ContentItem // content files added to the manifest and stored in the ZIP
+	Spine    []string      // IDs of Items in reading order
 }
 
 // ContentItem is one content file to be written into the EPUB manifest and ZIP.
 // Href is relative to the OPF document (e.g. "chapter1.xhtml"); Write stores
 // it under OEBPS/ in the ZIP.
 type ContentItem struct {
-	ID         string
-	Href       string
-	MediaType  string
+	ID         string // manifest item id attribute; must be unique within the Book
+	Href       string // path relative to the OPF document, e.g. "chapter1.xhtml"
+	MediaType  string // MIME type, e.g. "application/xhtml+xml"
 	Properties string // space-separated EPUB 3 properties, e.g. "nav"
-	Content    []byte
+	Content    []byte // raw file bytes written into the ZIP
 }
 
 // Write encodes book as a valid EPUB 3 file and writes it to dst. It returns
