@@ -1,5 +1,53 @@
 # Contributing
 
+## Setup
+
+1. Install git hooks:
+
+```
+make setup
+```
+
+  - Optional - Setup a [Go workspace](https://go.dev/doc/tutorial/workspaces) to do manual tests with a real project, or write scripts.
+
+1. Review existing documentation and standards.
+1. Iterate on your change and test it.
+1. Open a pull request and assign it to `@billdaws`.
+
+## Commit messages
+
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification, enforced by a `commit-msg` hook installed via `make setup`.
+
+**Format:**
+
+```
+type(scope)?: description
+```
+
+- **type** — one of: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
+- **scope** — optional, free-form, e.g. `opf`, `ncx`, `zip`
+- **description** — lower-case, no trailing period, imperative mood
+
+**Rules enforced by the hook:**
+
+- Header must not exceed 100 characters.
+- Description must begin with a lowercase letter.
+- Description must not end with a period.
+- Body (if present) must be separated from the header by a blank line.
+- Body lines must not exceed 100 characters.
+
+**Breaking changes** — append `!` before the colon: `feat(opf)!: remove deprecated field`.
+
+**Examples:**
+
+```
+feat(opf): add support for EPUB 3 metadata refines
+fix: return error on empty container.xml
+docs: document V2/V3 dispatch pattern
+test(ncx): add fixture for malformed toc.ncx
+refactor(zip): extract archive helper
+```
+
 ## Design goals
 
 **High test coverage.** Every public API should have unit tests. Where possible, use real public-domain EPUB files (e.g. from Project Gutenberg) as integration fixtures rather than synthetic ones — they catch real-world edge cases that hand-crafted test data tends to miss.
