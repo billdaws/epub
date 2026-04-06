@@ -180,6 +180,49 @@ func TestErrWriter_ConcurrentPrintf(t *testing.T) {
 	wg.Wait()
 }
 
+// TestWrite_ConcurrentWriteAndRead verifies that goroutines writing new EPUBs
+// and goroutines reading an existing EPUB can run simultaneously without data
+// races. Run with -race.
+func TestWrite_ConcurrentWriteAndRead(t *testing.T) {
+	book := testBook()
+	// Write once up front so the readers have a valid file to open.
+	readPath := writeTempEPUB(t, book)
+
+	const goroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(goroutines * 2)
+
+	// One set of goroutines writes new EPUBs to independent buffers.
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			if err := Write(&bytes.Buffer{}, book); err != nil {
+				t.Errorf("Write: %v", err)
+			}
+		}()
+	}
+
+	// Another set opens and reads the same file concurrently with the writes.
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			r, err := Open(readPath)
+			if err != nil {
+				t.Errorf("Open: %v", err)
+				return
+			}
+			defer r.Close()
+			for _, item := range r.Package.Manifest {
+				if _, err := r.ReadItem(item); err != nil {
+					t.Errorf("ReadItem(%q): %v", item.ID, err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
 func TestWrite_Errors(t *testing.T) {
 	tests := []struct {
 		name   string
