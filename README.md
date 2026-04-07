@@ -10,9 +10,8 @@ go get github.com/billdaws/epub
 
 - Read EPUB 2 and EPUB 3 archives
 - Parse OPF package metadata (title, authors, language, identifier, publication date)
-- Parse table of contents — prefers EPUB 3 nav documents, falls back to EPUB 2 NCX
-- Read manifest content items, safe for concurrent use
-- Write valid EPUB 3 archives
+- Parse table of contents
+- Read and write with thread-safety
 - Validate parsed packages against structural rules
 
 ## Usage
