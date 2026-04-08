@@ -92,6 +92,27 @@ func TestDecodePackage(t *testing.T) {
 			},
 		},
 		{
+			name: "iso-8859-1 declaration with ASCII content",
+			xml: `<?xml version='1.0' encoding='iso-8859-1'?>
+<package xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="id">
+  <metadata>
+    <dc:identifier id="id">x</dc:identifier>
+    <dc:title>How It Ended</dc:title>
+    <dc:creator opf:file-as="McInerney, Jay">Jay McInerney</dc:creator>
+    <dc:language>en-US</dc:language>
+    <dc:date opf:event="publication">2009</dc:date>
+  </metadata>
+  <manifest/><spine/>
+</package>`,
+			wantVersion: "2.0",
+			wantTitle:   "How It Ended",
+			wantAuthors: []string{"Jay McInerney"},
+			wantLang:    "en-US",
+			wantID:      "x",
+			wantDate:    "2009",
+		},
+		{
 			name:    "invalid XML",
 			xml:     `not xml`,
 			wantErr: true,
@@ -277,6 +298,35 @@ func TestOpenPackage_Integration(t *testing.T) {
 				t.Error("Manifest is empty")
 			}
 		})
+	}
+}
+
+func TestDecodePackage_ISO8859NonASCII(t *testing.T) {
+	// "Café" in ISO-8859-1: 'é' is byte 0xE9.
+	xmlBytes := "<?xml version='1.0' encoding='iso-8859-1'?>\n" +
+		"<package xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns=\"http://www.idpf.org/2007/opf\"" +
+		" version=\"2.0\" unique-identifier=\"id\">\n" +
+		"  <metadata>\n" +
+		"    <dc:identifier id=\"id\">x</dc:identifier>\n" +
+		"    <dc:title>Caf\xe9</dc:title>\n" +
+		"    <dc:language>fr</dc:language>\n" +
+		"  </metadata>\n" +
+		"  <manifest/><spine/>\n" +
+		"</package>"
+
+	pkg, err := decodePackage(strings.NewReader(xmlBytes), "content.opf")
+	if err != nil {
+		t.Fatalf("decodePackage: %v", err)
+	}
+	if pkg.Metadata.Title != "Caf\u00e9" {
+		t.Errorf("Title = %q, want %q", pkg.Metadata.Title, "Café")
+	}
+}
+
+func TestXMLCharsetReader_UnsupportedCharset(t *testing.T) {
+	_, err := xmlCharsetReader("windows-1252", strings.NewReader(""))
+	if err == nil {
+		t.Fatal("expected error for unsupported charset, got nil")
 	}
 }
 

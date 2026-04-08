@@ -2,6 +2,7 @@ package epub
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -123,10 +124,36 @@ type xmlPackage struct {
 
 func parseXMLPackage(r io.Reader, opfPath string) (xmlPackage, error) {
 	var x xmlPackage
-	if err := xml.NewDecoder(r).Decode(&x); err != nil {
+	d := xml.NewDecoder(r)
+	d.CharsetReader = xmlCharsetReader
+	if err := d.Decode(&x); err != nil {
 		return xmlPackage{}, fmt.Errorf("epub: decode OPF %q: %w", opfPath, err)
 	}
 	return x, nil
+}
+
+// xmlCharsetReader converts a small number of legacy XML character encodings to
+// UTF-8. OPF files occasionally declare "iso-8859-1"; the full byte range
+// 0x80–0xFF is converted to the equivalent UTF-8 sequences (U+0080–U+00FF).
+func xmlCharsetReader(charset string, input io.Reader) (io.Reader, error) {
+	switch strings.ToLower(strings.ReplaceAll(charset, "-", "")) {
+	case "iso88591", "latin1":
+		raw, err := io.ReadAll(input)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]byte, 0, len(raw))
+		for _, b := range raw {
+			if b < 0x80 {
+				out = append(out, b)
+			} else {
+				out = append(out, 0xC0|(b>>6), 0x80|(b&0x3F))
+			}
+		}
+		return bytes.NewReader(out), nil
+	default:
+		return nil, fmt.Errorf("epub: unsupported OPF charset %q", charset)
+	}
 }
 
 // DecodePackageV2 parses r as an EPUB 2 OPF document. It ignores the version
