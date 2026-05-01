@@ -167,6 +167,90 @@ func TestDecodePackage(t *testing.T) {
 	}
 }
 
+func TestDecodePackage_Cover(t *testing.T) {
+	tests := []struct {
+		name          string
+		xml           string
+		wantCoverHref string
+	}{
+		{
+			name: "EPUB 3 cover-image property",
+			xml: `<?xml version='1.0' encoding='UTF-8'?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.idpf.org/2007/opf"
+         version="3.0" unique-identifier="uid">
+  <metadata>
+    <dc:identifier id="uid">x</dc:identifier>
+    <dc:title>T</dc:title>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="cover-img" href="images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>
+    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine/>
+</package>`,
+			wantCoverHref: "images/cover.jpg",
+		},
+		{
+			name: "EPUB 2 meta name=cover",
+			xml: `<?xml version='1.0' encoding='UTF-8'?>
+<package xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="id">
+  <metadata>
+    <dc:identifier id="id">x</dc:identifier>
+    <dc:title>T</dc:title>
+    <dc:language>en</dc:language>
+    <meta name="cover" content="cover-img"/>
+  </metadata>
+  <manifest>
+    <item id="cover-img" href="images/front.jpg" media-type="image/jpeg"/>
+    <item id="ch1" href="ch1.html" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine/>
+</package>`,
+			wantCoverHref: "images/front.jpg",
+		},
+		{
+			name: "no cover",
+			xml: `<?xml version='1.0' encoding='UTF-8'?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.idpf.org/2007/opf"
+         version="3.0" unique-identifier="uid">
+  <metadata>
+    <dc:identifier id="uid">x</dc:identifier>
+    <dc:title>T</dc:title>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine/>
+</package>`,
+			wantCoverHref: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pkg, err := decodePackage(strings.NewReader(tt.xml), "content.opf")
+			if err != nil {
+				t.Fatalf("decodePackage() error = %v", err)
+			}
+			if tt.wantCoverHref == "" {
+				if pkg.Cover != nil {
+					t.Errorf("Cover = %+v, want nil", pkg.Cover)
+				}
+				return
+			}
+			if pkg.Cover == nil {
+				t.Fatalf("Cover = nil, want href %q", tt.wantCoverHref)
+			}
+			if pkg.Cover.Href != tt.wantCoverHref {
+				t.Errorf("Cover.Href = %q, want %q", pkg.Cover.Href, tt.wantCoverHref)
+			}
+		})
+	}
+}
+
 func TestDecodePackageV2_SkipsVersionCheck(t *testing.T) {
 	// DecodePackageV2 should succeed even when version attribute is missing or unknown,
 	// because the caller has asserted the version externally.
@@ -224,12 +308,13 @@ func TestDecodePackage_HrefPrefix(t *testing.T) {
 
 func TestOpenPackage_Integration(t *testing.T) {
 	tests := []struct {
-		file        string
-		wantTitle   string
-		wantAuthors []string
-		wantLang    string
-		wantDate    string
-		wantSpineN  int // expected number of spine items
+		file          string
+		wantTitle     string
+		wantAuthors   []string
+		wantLang      string
+		wantDate      string
+		wantSpineN    int    // expected number of spine items
+		wantCoverHref string // non-empty if a cover image is expected
 	}{
 		{
 			file:        "testdata/gift-of-the-magi.epub",
@@ -256,12 +341,13 @@ func TestOpenPackage_Integration(t *testing.T) {
 			wantSpineN:  37,
 		},
 		{
-			file:        "testdata/yellow-wallpaper.epub",
-			wantTitle:   "The Yellow Wallpaper",
-			wantAuthors: []string{"Charlotte Perkins Gilman"},
-			wantLang:    "en",
-			wantDate:    "1999-11-01",
-			wantSpineN:  3,
+			file:          "testdata/yellow-wallpaper.epub",
+			wantTitle:     "The Yellow Wallpaper",
+			wantAuthors:   []string{"Charlotte Perkins Gilman"},
+			wantLang:      "en",
+			wantDate:      "1999-11-01",
+			wantSpineN:    3,
+			wantCoverHref: "OEBPS/2948416096975060636_cover.jpg",
 		},
 		{
 			file:        "testdata/modest-proposal.epub",
@@ -296,6 +382,13 @@ func TestOpenPackage_Integration(t *testing.T) {
 			}
 			if len(pkg.Manifest) == 0 {
 				t.Error("Manifest is empty")
+			}
+			if tt.wantCoverHref != "" {
+				if pkg.Cover == nil {
+					t.Errorf("Cover = nil, want href %q", tt.wantCoverHref)
+				} else if pkg.Cover.Href != tt.wantCoverHref {
+					t.Errorf("Cover.Href = %q, want %q", pkg.Cover.Href, tt.wantCoverHref)
+				}
 			}
 		})
 	}

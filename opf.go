@@ -12,10 +12,11 @@ import (
 
 // Package is the parsed contents of an OPF package document.
 type Package struct {
-	Version  string      `json:"version"`  // e.g. "2.0" or "3.0", as written in the OPF
-	Metadata Metadata    `json:"metadata"` // bibliographic metadata from the OPF <metadata> element
-	Manifest []Item      `json:"manifest"` // all items declared in the OPF <manifest>
-	Spine    []SpineItem `json:"spine"`    // reading order declared in the OPF <spine>
+	Version  string      `json:"version"`         // e.g. "2.0" or "3.0", as written in the OPF
+	Metadata Metadata    `json:"metadata"`        // bibliographic metadata from the OPF <metadata> element
+	Manifest []Item      `json:"manifest"`        // all items declared in the OPF <manifest>
+	Spine    []SpineItem `json:"spine"`           // reading order declared in the OPF <spine>
+	Cover    *Item       `json:"cover,omitempty"` // cover image manifest item, or nil if absent
 }
 
 // Metadata holds Dublin Core bibliographic information from the OPF.
@@ -105,6 +106,11 @@ type xmlPackage struct {
 			Value string `xml:",chardata"`
 			Event string `xml:"http://www.idpf.org/2007/opf event,attr"`
 		} `xml:"http://purl.org/dc/elements/1.1/ date"`
+		// EPUB 2 cover reference: <meta name="cover" content="manifest-item-id"/>
+		Metas []struct {
+			Name    string `xml:"name,attr"`
+			Content string `xml:"content,attr"`
+		} `xml:"http://www.idpf.org/2007/opf meta"`
 	} `xml:"http://www.idpf.org/2007/opf metadata"`
 	Manifest struct {
 		Items []struct {
@@ -196,7 +202,7 @@ func decodePackage(r io.Reader, opfPath string) (*Package, error) {
 }
 
 // buildPackage assembles a Package from a decoded xmlPackage and pre-extracted
-// metadata. Manifest and spine parsing is identical across EPUB versions.
+// metadata. Manifest, spine, and cover parsing is identical across EPUB versions.
 func buildPackage(x xmlPackage, meta Metadata, opfPath string) *Package {
 	pkg := &Package{
 		Version:  x.Version,
@@ -226,7 +232,32 @@ func buildPackage(x xmlPackage, meta Metadata, opfPath string) *Package {
 		})
 	}
 
+	pkg.Cover = findCover(x, pkg.Manifest)
+
 	return pkg
+}
+
+// findCover locates the cover image manifest item. It checks, in order:
+//  1. EPUB 3: manifest item with properties containing "cover-image"
+//  2. EPUB 2: <meta name="cover" content="item-id"/> in the OPF metadata
+func findCover(x xmlPackage, manifest []Item) *Item {
+	// EPUB 3: cover-image property
+	for i := range manifest {
+		if strings.Contains(manifest[i].Properties, "cover-image") {
+			return &manifest[i]
+		}
+	}
+	// EPUB 2: meta name="cover"
+	for _, m := range x.Metadata.Metas {
+		if strings.EqualFold(m.Name, "cover") && m.Content != "" {
+			for i := range manifest {
+				if manifest[i].ID == m.Content {
+					return &manifest[i]
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // extractMetadataV2 extracts metadata from an EPUB 2 OPF. It prefers the
